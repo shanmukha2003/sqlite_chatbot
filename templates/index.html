@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLaMA SQL Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h2 {
+            color: #333;
+        }
+        textarea {
+            width: 80%;
+            height: 150px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #sqlOutput, #dbResults {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>SQL Assistant</h2>
+        <textarea id="queryInput" placeholder="Enter your query here..."></textarea>
+        <br>
+        <button onclick="sendQuery()">Generate SQL & Execute</button>
+    </div>
+    
+    <div class="container">
+        <h3>Generated SQL:</h3>
+        <p id="sqlOutput"></p>
+    </div>
+
+    <div class="container">
+        <h3>Database Results:</h3>
+        <table id="dbResults"></table>
+    </div>
+
+    <div class="container">
+        <h3>Database Structure:</h3>
+        <table id="dbStructure"></table>
+    </div>
+
+    <script>
+        async function sendQuery() {
+            const query = document.getElementById("queryInput").value;
+            if (!query) {
+                alert("Please enter a query.");
+                return;
+            }
+
+            // Send user query to backend
+            const response = await fetch("/query", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query })
+            });
+
+            const data = await response.json();
+
+            // Show generated SQL
+            if (data.sql) {
+                document.getElementById("sqlOutput").innerText = data.sql;
+                executeSQL(data.sql);  // Execute the SQL query
+            } else {
+                document.getElementById("sqlOutput").innerText = "❌ Error: " + data.error;
+            }
+        }
+
+        async function executeSQL(sql) {
+            const response = await fetch("/execute", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sql })
+            });
+
+            const data = await response.json();
+
+            const table = document.getElementById("dbResults");
+            table.innerHTML = ""; // Clear previous results
+
+            if (data.results.length > 0) {
+                const headers = Object.keys(data.results[0]);
+
+                // Create table header
+                let thead = "<tr>";
+                headers.forEach(header => {
+                    thead += `<th>${header}</th>`;
+                });
+                thead += "</tr>";
+                table.innerHTML += thead;
+
+                // Create table rows
+                data.results.forEach(row => {
+                    let tr = "<tr>";
+                    headers.forEach(header => {
+                        tr += `<td>${row[header]}</td>`;
+                    });
+                    tr += "</tr>";
+                    table.innerHTML += tr;
+                });
+            } else {
+                table.innerHTML = "<tr><td>No results found</td></tr>";
+            }
+        }
+
+        // Load database structure on page load
+        async function loadDbStructure() {
+            const response = await fetch("/structure");
+            const data = await response.json();
+            const structureTable = document.getElementById("dbStructure");
+            structureTable.innerHTML = "";
+
+            data.tables.forEach(table => {
+                let tr = `<tr><th colspan="2">${table.name}</th></tr>`;
+                table.columns.forEach(col => {
+                    tr += `<tr><td>${col.name}</td><td>${col.type}</td></tr>`;
+                });
+                structureTable.innerHTML += tr;
+            });
+        }
+
+        window.onload = loadDbStructure;
+    </script>
+
+</body>
+</html>
