@@ -37,3 +37,8 @@ python server.py
 Open http://127.0.0.1:5000 in your browser.
 Enter your natural language query (e.g., "List all employees in the Sales department").
 View the generated SQL query and its results.
+
+⚡ Notes:
+The Llama 3 model (.gguf format) should be available locally.
+Ensure all required Python libraries are installed.
+Modify Flask UI as needed for better usability.
